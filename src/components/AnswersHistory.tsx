@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Answer } from '../types';
-import { BookOpen, Calendar, Search, Trash2, Edit3 } from 'lucide-react';
+import { BookOpen, Calendar, Search, Trash2, Edit3, SortAsc, SortDesc } from 'lucide-react';
 
 interface AnswersHistoryProps {
   answers: Answer[];
@@ -15,6 +15,8 @@ export const AnswersHistory: React.FC<AnswersHistoryProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'category'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const categories = ['all', ...new Set(answers.map(a => a.category).filter(Boolean))];
@@ -24,6 +26,30 @@ export const AnswersHistory: React.FC<AnswersHistoryProps> = ({
                          answer.answer_text.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || answer.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  // Sort answers
+  const sortedAnswers = [...filteredAnswers].sort((a, b) => {
+    let comparison = 0;
+    
+    switch (sortBy) {
+      case 'name':
+        const nameA = a.user_name || 'Anonymous';
+        const nameB = b.user_name || 'Anonymous';
+        comparison = nameA.localeCompare(nameB);
+        break;
+      case 'category':
+        const catA = a.category || '';
+        const catB = b.category || '';
+        comparison = catA.localeCompare(catB);
+        break;
+      case 'date':
+      default:
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        break;
+    }
+    
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
   const handleDelete = async (answerId: string) => {
@@ -36,6 +62,15 @@ export const AnswersHistory: React.FC<AnswersHistoryProps> = ({
       console.error('Failed to delete answer:', error);
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const toggleSort = (newSortBy: 'date' | 'name' | 'category') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('asc');
     }
   };
 
@@ -99,9 +134,9 @@ export const AnswersHistory: React.FC<AnswersHistoryProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+        <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <BookOpen className="w-6 h-6 text-indigo-600" />
@@ -119,117 +154,176 @@ export const AnswersHistory: React.FC<AnswersHistoryProps> = ({
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50/50">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search questions or answers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
+        {/* Filters and Sorting */}
+        <div className="p-6 border-b border-gray-200 bg-gray-50/50 flex-shrink-0">
+          <div className="flex flex-col gap-4">
+            {/* Search and Category Filter */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search questions or answers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+              
+              {/* Category Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+              >
+                <option value="all">All Categories</option>
+                {categories.filter(cat => cat !== 'all').map(category => (
+                  <option key={category} value={category}>
+                    {getCategoryName(category)}
+                  </option>
+                ))}
+              </select>
             </div>
-            
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-            >
-              <option value="all">All Categories</option>
-              {categories.filter(cat => cat !== 'all').map(category => (
-                <option key={category} value={category}>
-                  {getCategoryName(category)}
-                </option>
-              ))}
-            </select>
+
+            {/* Sort Options */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-600">Sort by:</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => toggleSort('date')}
+                  className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    sortBy === 'date' 
+                      ? 'bg-indigo-100 text-indigo-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Date</span>
+                  {sortBy === 'date' && (
+                    sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => toggleSort('name')}
+                  className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    sortBy === 'name' 
+                      ? 'bg-indigo-100 text-indigo-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>Name</span>
+                  {sortBy === 'name' && (
+                    sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => toggleSort('category')}
+                  className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    sortBy === 'category' 
+                      ? 'bg-indigo-100 text-indigo-700' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>Category</span>
+                  {sortBy === 'category' && (
+                    sortOrder === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Answers List */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {filteredAnswers.length === 0 ? (
-            <div className="text-center py-12">
-              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">
-                {searchTerm || selectedCategory !== 'all' 
-                  ? 'No answers match your search criteria' 
-                  : 'No answers yet. Start answering questions to see them here!'}
-              </p>
-            </div>
-          ) : (
-            filteredAnswers.map((answer) => (
-              <div key={answer.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                {/* Question */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className={`bg-gradient-to-r ${getCategoryColor(answer.category || '')} text-white px-3 py-1 rounded-full text-xs font-medium`}>
-                        {getCategoryName(answer.category || '')}
-                      </span>
-                      <span className="text-sm text-gray-500">Question #{answer.question_id}</span>
+        {/* Answers List - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-6">
+            {sortedAnswers.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">
+                  {searchTerm || selectedCategory !== 'all' 
+                    ? 'No answers match your search criteria' 
+                    : 'No answers yet. Start answering questions to see them here!'}
+                </p>
+              </div>
+            ) : (
+              sortedAnswers.map((answer) => (
+                <div key={answer.id} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                  {/* Question */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <span className={`bg-gradient-to-r ${getCategoryColor(answer.category || '')} text-white px-3 py-1 rounded-full text-xs font-medium`}>
+                          {getCategoryName(answer.category || '')}
+                        </span>
+                        <span className="text-sm text-gray-500">Question #{answer.question_id}</span>
+                        {answer.user_name && (
+                          <span className="text-sm text-gray-600 font-medium">
+                            by {answer.user_name}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
+                        {answer.question_text}
+                      </h3>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
-                      {answer.question_text}
-                    </h3>
+                    
+                    <button
+                      onClick={() => handleDelete(answer.id)}
+                      disabled={isDeleting === answer.id}
+                      className="ml-4 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      {isDeleting === answer.id ? (
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-red-600 rounded-full animate-spin"></div>
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
                   </div>
-                  
-                  <button
-                    onClick={() => handleDelete(answer.id)}
-                    disabled={isDeleting === answer.id}
-                    className="ml-4 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    {isDeleting === answer.id ? (
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-red-600 rounded-full animate-spin"></div>
-                    ) : (
-                      <Trash2 className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
 
-                {/* Answer */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-3">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {answer.answer_text}
-                  </p>
-                </div>
+                  {/* Answer */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-3">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {answer.answer_text}
+                    </p>
+                  </div>
 
-                {/* Metadata */}
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {new Date(answer.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                    {answer.updated_at !== answer.created_at && (
+                  {/* Metadata */}
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-1">
-                        <Edit3 className="w-4 h-4" />
+                        <Calendar className="w-4 h-4" />
                         <span>
-                          Updated {new Date(answer.updated_at).toLocaleDateString('en-US', {
+                          {new Date(answer.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
                             month: 'short',
                             day: 'numeric'
                           })}
                         </span>
                       </div>
-                    )}
-                  </div>
-                  <div className="text-xs">
-                    {answer.answer_text.length} characters
+                      {answer.updated_at !== answer.created_at && (
+                        <div className="flex items-center space-x-1">
+                          <Edit3 className="w-4 h-4" />
+                          <span>
+                            Updated {new Date(answer.updated_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs">
+                      {answer.answer_text.length} characters
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
