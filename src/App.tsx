@@ -19,6 +19,7 @@ function App() {
     currentQuestion,
     nextQuestion,
     previousQuestion,
+    goToRandomQuestion,
     shuffleDeck,
     resetDeck,
     applyCategories,
@@ -57,6 +58,14 @@ function App() {
     }, 250);
   };
 
+  const handleRandomQuestion = () => {
+    setIsFlipping(true);
+    setTimeout(() => {
+      goToRandomQuestion();
+      setIsFlipping(false);
+    }, 250);
+  };
+
   const handleShuffle = () => {
     setIsFlipping(true);
     setTimeout(() => {
@@ -91,6 +100,11 @@ function App() {
       category: currentQuestion.category,
       user_name: answerUserName || userName
     });
+
+    // Auto-navigate to a random question after saving
+    setTimeout(() => {
+      handleRandomQuestion();
+    }, 1000); // Small delay to show the success message
   };
 
   // Keyboard navigation

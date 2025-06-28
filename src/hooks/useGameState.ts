@@ -35,6 +35,21 @@ export const useGameState = () => {
     }));
   }, []);
 
+  const goToRandomQuestion = useCallback(() => {
+    setGameState(prev => {
+      // Generate a random index that's different from the current one
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * prev.questions.length);
+      } while (randomIndex === prev.currentIndex && prev.questions.length > 1);
+      
+      return {
+        ...prev,
+        currentIndex: randomIndex,
+      };
+    });
+  }, []);
+
   const shuffleDeck = useCallback(() => {
     const shuffled = [...gameState.questions].sort(() => Math.random() - 0.5);
     setGameState(prev => ({
@@ -83,6 +98,7 @@ export const useGameState = () => {
     currentQuestion: gameState.questions[gameState.currentIndex],
     nextQuestion,
     previousQuestion,
+    goToRandomQuestion,
     shuffleDeck,
     resetDeck,
     applyCategories,
